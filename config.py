@@ -8,7 +8,7 @@ CSV_BROMIDE_OUTPUT_PATH = "data/output-bromide.csv"
 CSV_CHLORIDE_OUTPUT_PATH = "data/output-chloride.csv"
 CSV_OUTPUT_NAMES = ["m/z 1", "intensity 1", "m/z 2", "intensity 2"]
 
-ERROR_MARGIN_M_Z = 0.0000104  # Mass to charge ratio error margin
+ERROR_MARGIN_M_Z = 1.04e-5  # Mass to charge ratio error margin
 
 CHLORIDE_DELTA_M_Z = 1.9970499  # Mass to charge ratio indicating chloride isotopes
 BROMIDE_DELTA_M_Z = 1.997953499  # Mass to charge ratio indicating bromide isotopes

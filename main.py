@@ -5,6 +5,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from csv_processor import CsvProcessor
 from csv_writer import CsvWriter
+from util import output_entries_to_columns, to_py_floats, binary_search_greater_than_equals
 
 _CHLORIDE_MATCHES = "chloride matches."
 _BROMIDE_MATCHES = "bromide matches"
@@ -16,7 +17,7 @@ def _preprocess_table_filter(table):
 
 
 def _preprocess_table_into_chunks(table):
-    m_z_entries = _to_py_floats(table[config.CSV_M_Z_NAME])
+    m_z_entries = to_py_floats(table[config.CSV_M_Z_NAME])
     table_len = len(table)
     chunk_indices = []
     chunk_threshold_m_z = max(config.CHLORIDE_DELTA_M_Z, config.BROMIDE_DELTA_M_Z) + 2 * config.ERROR_MARGIN_M_Z
@@ -42,14 +43,14 @@ def _match_chloride_bromide(chunk):
     chloride_entry_pairs = []
     bromide_entry_pairs = []
 
-    chunk_m_z_entries = _to_py_floats(chunk[config.CSV_M_Z_NAME])
-    chunk_intensity_entries = _to_py_floats(chunk[config.CSV_INTENSITY_NAME])
+    chunk_m_z_entries = to_py_floats(chunk[config.CSV_M_Z_NAME])
+    chunk_intensity_entries = to_py_floats(chunk[config.CSV_INTENSITY_NAME])
 
     for i, (m_z, intensity) in enumerate(zip(chunk_m_z_entries, chunk_intensity_entries)):
         (target_chloride_m_z, min_chloride_m_z, max_chloride_m_z) = _determine_chloride_m_z_targets(m_z)
         (target_bromide_m_z, min_bromide_m_z, max_bromide_m_z) = _determine_bromide_m_z_targets(m_z)
 
-        iterate_from = _binary_search_greater_than_equals(chunk_m_z_entries, min(min_chloride_m_z, min_bromide_m_z), i)
+        iterate_from = binary_search_greater_than_equals(chunk_m_z_entries, min(min_chloride_m_z, min_bromide_m_z), i)
 
         for (compare_m_z, compare_intensity) in zip(chunk_m_z_entries[iterate_from:],
                                                     chunk_intensity_entries[iterate_from:]):
@@ -68,53 +69,21 @@ def _match_chloride_bromide(chunk):
 
 def _determine_chloride_m_z_targets(m_z):
     target_chloride_m_z = m_z + config.CHLORIDE_DELTA_M_Z
-    min_chloride_m_z = target_chloride_m_z - config.ERROR_MARGIN_M_Z
-    max_chloride_m_z = target_chloride_m_z + config.ERROR_MARGIN_M_Z
+    min_chloride_m_z, max_chloride_m_z = _determine_m_z_with_error_margins(m_z)
 
     return target_chloride_m_z, min_chloride_m_z, max_chloride_m_z
 
 
 def _determine_bromide_m_z_targets(m_z):
     target_bromide_m_z = m_z + config.BROMIDE_DELTA_M_Z
-    min_bromide_m_z = target_bromide_m_z - config.ERROR_MARGIN_M_Z
-    max_bromide_m_z = target_bromide_m_z + config.ERROR_MARGIN_M_Z
+    min_bromide_m_z, max_bromide_m_z = _determine_m_z_with_error_margins(m_z)
 
     return target_bromide_m_z, min_bromide_m_z, max_bromide_m_z
 
 
-def _to_py_floats(items):
-    return list(map(lambda item: item.as_py(), items))
-
-
-def _binary_search_greater_than_equals(arr, x, start_from_index):
-    low = start_from_index
-    high = len(arr) - 1
-
-    while low <= high:
-        mid = (high + low) // 2
-        mid_val = arr[mid]
-
-        if mid_val <= x:
-            low = mid + 1
-        else:
-            high = mid - 1
-
-    return max(high, start_from_index)
-
-
-def _output_entries_to_columns(entries):
-    m_z_1_col = []
-    intensity_1_col = []
-    m_z_2_col = []
-    intensity_2_col = []
-
-    for ((m_z_1, intensity_1), (m_z_2, intensity_2)) in entries:
-        m_z_1_col.append(m_z_1)
-        intensity_1_col.append(intensity_1)
-        m_z_2_col.append(m_z_2)
-        intensity_2_col.append(intensity_2)
-
-    return [pa.array(m_z_1_col), pa.array(intensity_1_col), pa.array(m_z_2_col), pa.array(intensity_2_col)]
+def _determine_m_z_with_error_margins(m_z):
+    rel_error_margin = m_z * config.ERROR_MARGIN_M_Z
+    return m_z - rel_error_margin, m_z + rel_error_margin
 
 
 def main():
@@ -141,8 +110,8 @@ def main():
     print(len(chloride_entries), _CHLORIDE_MATCHES)
     print(len(bromide_entries), _BROMIDE_MATCHES)
 
-    chloride_entries_pa = _output_entries_to_columns(chloride_entries)
-    bromide_entries_pa = _output_entries_to_columns(bromide_entries)
+    chloride_entries_pa = output_entries_to_columns(chloride_entries)
+    bromide_entries_pa = output_entries_to_columns(bromide_entries)
 
     chloride_table = pa.Table.from_arrays(chloride_entries_pa, names=config.CSV_OUTPUT_NAMES)
     bromide_table = pa.Table.from_arrays(bromide_entries_pa, names=config.CSV_OUTPUT_NAMES)
