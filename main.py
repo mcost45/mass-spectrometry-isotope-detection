@@ -5,7 +5,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from csv_processor import CsvProcessor
 from csv_writer import CsvWriter
-from util import output_entries_to_columns, to_py_floats, binary_search_greater_than_equals
+from util import output_entries_to_columns, to_py_floats, binary_search_greater_than_equals, divide_with_error_margin
 
 _CHLORIDE_MATCHES = "chloride matches."
 _BROMIDE_MATCHES = "bromide matches"
@@ -43,18 +43,21 @@ def _match_chloride_bromide(chunk):
     chunk_m_z_entries = to_py_floats(chunk[config.CSV_M_Z_NAME])
     chunk_intensity_entries = to_py_floats(chunk[config.CSV_INTENSITY_NAME])
 
-    chloride_entry_pairs = _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, config.CHLORIDE_DELTA_M_Z)
-    bromide_entry_pairs = _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, config.BROMIDE_DELTA_M_Z)
+    chloride_entry_pairs = _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, config.CHLORIDE_DELTA_M_Z,
+                                           config.CHLORIDE_INTENSITY_RATIO)
+    bromide_entry_pairs = _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, config.BROMIDE_DELTA_M_Z,
+                                          config.BROMIDE_INTENSITY_RATIO)
 
     if len(chloride_entry_pairs) or len(bromide_entry_pairs):
         return chloride_entry_pairs, bromide_entry_pairs
 
 
-def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_mz):
+def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_mz, target_intensity_ratio):
     isotope_entry_pairs = []
 
     for i, (m_z, intensity) in enumerate(zip(chunk_m_z_entries, chunk_intensity_entries)):
-        (target_m_z, min_m_z, max_m_z) = _determine_isotope_m_z_targets(m_z, target_delta_mz)
+        (min_m_z, max_m_z) = _determine_isotope_m_z_targets(m_z, target_delta_mz)
+        (min_intensity, max_intensity) = _determine_isotope_intensity_targets(intensity, target_intensity_ratio)
         iterate_from = binary_search_greater_than_equals(chunk_m_z_entries, min_m_z, i)
 
         for (compare_m_z, compare_intensity) in zip(chunk_m_z_entries[iterate_from:],
@@ -62,7 +65,7 @@ def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_mz)
             if compare_m_z > max_m_z:
                 break
 
-            if min_m_z <= compare_m_z <= max_m_z:
+            if (min_intensity <= compare_intensity <= max_intensity) and (min_m_z <= compare_m_z <= max_m_z):
                 isotope_entry_pairs.append(((m_z, intensity), (compare_m_z, compare_intensity)))
 
     return isotope_entry_pairs
@@ -70,13 +73,15 @@ def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_mz)
 
 def _determine_isotope_m_z_targets(m_z, target_delta_mz):
     target_m_z = m_z + target_delta_mz
-    min_m_z, max_m_z = _determine_m_z_with_error_margins(m_z)
-    return target_m_z, min_m_z, max_m_z
-
-
-def _determine_m_z_with_error_margins(m_z):
-    rel_error_margin = m_z * config.ERROR_MARGIN_M_Z
+    rel_error_margin = target_m_z * config.ERROR_MARGIN_M_Z
     return m_z - rel_error_margin, m_z + rel_error_margin
+
+
+def _determine_isotope_intensity_targets(intensity, target_intensity_ratio):
+    rel_error_margin = (target_intensity_ratio / 100) * config.ERROR_MARGIN_INTENSITY_RATIO
+    (target_intensity, error_margin) = divide_with_error_margin(intensity, target_intensity_ratio, rel_error_margin,
+                                                                rel_error_margin)
+    return target_intensity - error_margin, target_intensity + error_margin
 
 
 def _output_isotope_matches(isotope_chunk_results, match_msg, csv_output_path):
@@ -99,6 +104,10 @@ def main():
                              _match_chloride_bromide, delimiter=config.CSV_DELIMITER, skip_rows=config.CSV_SKIP_ROWS,
                              include_columns=config.CSV_INCLUDE_COLUMNS)
     chunk_results = list(zip(*processor.process()))
+
+    if not len(chunk_results):
+        chunk_results = [[], []]
+
     _output_isotope_matches(chunk_results[0], _CHLORIDE_MATCHES, config.CSV_CHLORIDE_OUTPUT_PATH)
     _output_isotope_matches(chunk_results[1], _BROMIDE_MATCHES, config.CSV_BROMIDE_OUTPUT_PATH)
 
