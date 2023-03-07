@@ -1,6 +1,6 @@
-CSV_INPUT_PATH = "data/demo-input.csv"  # Data location (CSV)
+CSV_INPUT_PATH = "data/hps.csv"  # Data location (CSV)
 CSV_SKIP_ROWS = 10  # Number of lines that should be skipped (i.e. for comments)
-CSV_DELIMITER = ";"  # The character separating each value within the csv
+CSV_DELIMITER = ","  # The character separating each value within the csv
 CSV_M_Z_NAME = "m/z"
 CSV_INTENSITY_NAME = "intensities"
 CSV_INCLUDE_COLUMNS = [CSV_M_Z_NAME, CSV_INTENSITY_NAME]
@@ -8,13 +8,39 @@ CSV_BROMIDE_OUTPUT_PATH = "data/output-bromide.csv"
 CSV_CHLORIDE_OUTPUT_PATH = "data/output-chloride.csv"
 CSV_OUTPUT_NAMES = ["m/z 1", "intensity 1", "m/z 2", "intensity 2"]
 
+MIN_INTENSITY = 0.1
+
 ERROR_MARGIN_M_Z = 1.04e-5  # Mass to charge ratio error margin
-ERROR_MARGIN_INTENSITY_RATIO = 0.5  # Intensity ratio error margin
+ERROR_MARGIN_INTENSITY_RATIO_PERCENT = 10  # Intensity ratio error margin
 
 CHLORIDE_DELTA_M_Z = 1.9970499  # Mass to charge ratio indicating chloride isotopes
-CHLORIDE_INTENSITY_RATIO = 75.78 / 24.22  # The difference between two intensity points indicating chloride isotopes
+CHLORIDE_INTENSITY_RATIO_NUMERATOR = 75.78
+CHLORIDE_INTENSITY_RATIO_DENOMINATOR = 24.22
+CHLORIDE_INTENSITY_RATIO_NUMERATOR_REL_ERROR = CHLORIDE_INTENSITY_RATIO_NUMERATOR * \
+                                               ERROR_MARGIN_INTENSITY_RATIO_PERCENT / 100
+CHLORIDE_INTENSITY_RATIO_DENOMINATOR_REL_ERROR = CHLORIDE_INTENSITY_RATIO_DENOMINATOR * \
+                                                 ERROR_MARGIN_INTENSITY_RATIO_PERCENT / 100
+CHLORIDE_INTENSITY_RATIO_ERROR_MARGIN_MIN = (CHLORIDE_INTENSITY_RATIO_NUMERATOR -
+                                             CHLORIDE_INTENSITY_RATIO_NUMERATOR_REL_ERROR) / \
+                                            (CHLORIDE_INTENSITY_RATIO_DENOMINATOR +
+                                             CHLORIDE_INTENSITY_RATIO_DENOMINATOR_REL_ERROR)
+CHLORIDE_INTENSITY_RATIO_ERROR_MARGIN_MAX = (CHLORIDE_INTENSITY_RATIO_NUMERATOR +
+                                             CHLORIDE_INTENSITY_RATIO_NUMERATOR_REL_ERROR) / \
+                                            (CHLORIDE_INTENSITY_RATIO_DENOMINATOR -
+                                             CHLORIDE_INTENSITY_RATIO_DENOMINATOR_REL_ERROR)
 
 BROMIDE_DELTA_M_Z = 1.997953499  # Mass to charge ratio indicating bromide isotopes
-BROMIDE_INTENSITY_RATIO = 50.65 / 49.35  # The difference between two intensity points indicating bromide isotopes
-
-MIN_INTENSITY = 0.1
+BROMIDE_INTENSITY_RATIO_NUMERATOR = 50.65
+BROMIDE_INTENSITY_RATIO_DENOMINATOR = 49.35
+BROMIDE_INTENSITY_RATIO_NUMERATOR_REL_ERROR = BROMIDE_INTENSITY_RATIO_NUMERATOR * \
+                                              ERROR_MARGIN_INTENSITY_RATIO_PERCENT / 100
+BROMIDE_INTENSITY_RATIO_DENOMINATOR_REL_ERROR = BROMIDE_INTENSITY_RATIO_DENOMINATOR * \
+                                                ERROR_MARGIN_INTENSITY_RATIO_PERCENT / 100
+BROMIDE_INTENSITY_RATIO_ERROR_MARGIN_MIN = (BROMIDE_INTENSITY_RATIO_NUMERATOR -
+                                            BROMIDE_INTENSITY_RATIO_NUMERATOR_REL_ERROR) / \
+                                           (BROMIDE_INTENSITY_RATIO_DENOMINATOR +
+                                            BROMIDE_INTENSITY_RATIO_DENOMINATOR_REL_ERROR)
+BROMIDE_INTENSITY_RATIO_ERROR_MARGIN_MAX = (BROMIDE_INTENSITY_RATIO_NUMERATOR +
+                                            BROMIDE_INTENSITY_RATIO_NUMERATOR_REL_ERROR) / \
+                                           (BROMIDE_INTENSITY_RATIO_DENOMINATOR -
+                                            BROMIDE_INTENSITY_RATIO_DENOMINATOR_REL_ERROR)

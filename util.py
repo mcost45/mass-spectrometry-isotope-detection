@@ -5,10 +5,6 @@ def to_py_floats(items):
     return list(map(lambda item: item.as_py(), items))
 
 
-def divide_with_error_margin(a, b, a_error_margin, b_error_margin):
-    return a / b, a * b_error_margin + b * a_error_margin + a_error_margin * b_error_margin
-
-
 def binary_search_greater_than_equals(arr, x, start_from_index):
     low = start_from_index
     high = len(arr) - 1
