@@ -8,8 +8,8 @@ from csv_writer import CsvWriter
 from util import output_entries_to_columns, to_py_floats, binary_search_greater_than_equals
 
 _CHLORIDE_MATCHES = "chloride matches."
-_BROMIDE_MATCHES = "bromide matches"
-_SECONDS = "seconds"
+_BROMIDE_MATCHES = "bromide matches."
+_SECONDS = "seconds."
 
 
 def _preprocess_table_filter(table):
@@ -20,18 +20,20 @@ def _preprocess_table_into_chunks(table):
     m_z_entries = to_py_floats(table[config.CSV_M_Z_NAME])
     table_len = len(table)
     chunk_indices = []
-    chunk_threshold_m_z = max(config.CHLORIDE_DELTA_M_Z, config.BROMIDE_DELTA_M_Z) + 2 * config.ERROR_MARGIN_M_Z
-    prev_m_z = m_z_entries[0]
+    chunk_threshold_delta_m_z = max(config.CHLORIDE_DELTA_M_Z, config.BROMIDE_DELTA_M_Z)
+
+    (_, prev_max_m_z) = _determine_isotope_m_z_targets(m_z_entries[0], chunk_threshold_delta_m_z)
     chunk_starts_from_m_z_index = 0
 
     for i, m_z in enumerate(m_z_entries):
-        delta_m_z = m_z - prev_m_z
+        (min_m_z, _) = _determine_isotope_m_z_targets(m_z, chunk_threshold_delta_m_z)
+        delta_m_z = min_m_z - prev_max_m_z
 
-        if delta_m_z > chunk_threshold_m_z:
+        if delta_m_z > chunk_threshold_delta_m_z:
             chunk_indices.append([chunk_starts_from_m_z_index, i - 1])
             chunk_starts_from_m_z_index = i
 
-        prev_m_z = m_z
+        (_, prev_max_m_z) = _determine_isotope_m_z_targets(m_z, chunk_threshold_delta_m_z)
 
     if len(chunk_indices) == 0 or chunk_indices[1][-1] != table_len:
         chunk_indices.append([chunk_starts_from_m_z_index, table_len])
@@ -44,25 +46,24 @@ def _match_chloride_bromide(chunk):
     chunk_intensity_entries = to_py_floats(chunk[config.CSV_INTENSITY_NAME])
 
     chloride_entry_pairs = _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, config.CHLORIDE_DELTA_M_Z,
-                                           config.CHLORIDE_INTENSITY_RATIO_ERROR_MARGIN_MIN,
-                                           config.CHLORIDE_INTENSITY_RATIO_ERROR_MARGIN_MAX)
+                                           config.CHLORIDE_INTENSITY_RATIO,
+                                           config.CHLORIDE_INTENSITY_RATIO_ERROR_MARGIN)
     bromide_entry_pairs = _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, config.BROMIDE_DELTA_M_Z,
-                                          config.BROMIDE_INTENSITY_RATIO_ERROR_MARGIN_MIN,
-                                          config.BROMIDE_INTENSITY_RATIO_ERROR_MARGIN_MAX)
+                                          config.BROMIDE_INTENSITY_RATIO,
+                                          config.BROMIDE_INTENSITY_RATIO_ERROR_MARGIN)
 
     if len(chloride_entry_pairs) or len(bromide_entry_pairs):
         return chloride_entry_pairs, bromide_entry_pairs
 
 
-def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_mz, intensity_ratio_error_margin_min,
-                    intensity_ratio_error_margin_max):
+def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_m_z, intensity_ratio,
+                    intensity_ratio_error_margin):
     isotope_entry_pairs = []
 
     for i, (m_z, intensity) in enumerate(zip(chunk_m_z_entries, chunk_intensity_entries)):
-        (min_m_z, max_m_z) = _determine_isotope_m_z_targets(m_z, target_delta_mz)
-        (min_intensity, max_intensity) = _determine_isotope_intensity_targets(intensity,
-                                                                              intensity_ratio_error_margin_min,
-                                                                              intensity_ratio_error_margin_max)
+        (min_m_z, max_m_z) = _determine_isotope_m_z_targets(m_z, target_delta_m_z)
+        (min_intensity, max_intensity) = _determine_isotope_intensity_targets(intensity, intensity_ratio,
+                                                                              intensity_ratio_error_margin)
         iterate_from = binary_search_greater_than_equals(chunk_m_z_entries, min_m_z, i)
 
         for (compare_m_z, compare_intensity) in zip(chunk_m_z_entries[iterate_from:],
@@ -76,14 +77,42 @@ def _match_isotopes(chunk_m_z_entries, chunk_intensity_entries, target_delta_mz,
     return isotope_entry_pairs
 
 
-def _determine_isotope_m_z_targets(m_z, target_delta_mz):
-    target_m_z = m_z + target_delta_mz
-    rel_error_margin = target_m_z * config.ERROR_MARGIN_M_Z
-    return target_m_z - rel_error_margin, target_m_z + rel_error_margin
+def _determine_isotope_m_z_targets(m_z, target_delta_m_z):
+    base_minus_error_margin = config.REL_ERROR_MARGIN_M_Z_MINUS * m_z
+    base_plus_error_margin = config.REL_ERROR_MARGIN_M_Z_PLUS * m_z
+
+    base_m_z_min = m_z - base_minus_error_margin
+    base_m_z_max = m_z + base_plus_error_margin
+
+    target_m_z_min_without_error = base_m_z_min + target_delta_m_z
+    target_m_z_max_without_error = base_m_z_max + target_delta_m_z
+
+    target_minus_error_margin = config.REL_ERROR_MARGIN_M_Z_MINUS * target_m_z_min_without_error
+    target_plus_error_margin = config.REL_ERROR_MARGIN_M_Z_PLUS * target_m_z_max_without_error
+
+    target_m_z_min = target_m_z_min_without_error - target_minus_error_margin
+    target_m_z_max = target_m_z_max_without_error + target_plus_error_margin
+
+    return target_m_z_min, target_m_z_max
 
 
-def _determine_isotope_intensity_targets(intensity, intensity_ratio_error_margin_min, intensity_ratio_error_margin_max):
-    return intensity / intensity_ratio_error_margin_max, intensity / intensity_ratio_error_margin_min
+def _determine_isotope_intensity_targets(intensity, intensity_ratio, intensity_ratio_error_margin):
+    rel_error_margin_intensity_ratio = config.REL_ERROR_MARGIN_INTENSITY_RATIO
+    base_error_margin = intensity * rel_error_margin_intensity_ratio
+
+    base_intensity_min = intensity - base_error_margin
+    base_intensity_max = intensity + base_error_margin
+
+    target_intensity_min_without_error = base_intensity_min * (intensity_ratio - intensity_ratio_error_margin)
+    target_intensity_max_without_error = base_intensity_max * (intensity_ratio + intensity_ratio_error_margin)
+
+    target_minus_error_margin = target_intensity_min_without_error * rel_error_margin_intensity_ratio
+    target_max_error_margin = target_intensity_max_without_error * rel_error_margin_intensity_ratio
+
+    target_intensity_min = target_intensity_min_without_error - target_minus_error_margin
+    target_intensity_max = target_intensity_max_without_error + target_max_error_margin
+
+    return target_intensity_min, target_intensity_max
 
 
 def _output_isotope_matches(isotope_chunk_results, match_msg, csv_output_path):
