@@ -3,8 +3,8 @@ import time
 import config
 import pyarrow as pa
 import pyarrow.compute as pc
-from csv_processor import CsvProcessor
-from csv_writer import CsvWriter
+from classes.csv_processor import CsvProcessor
+from classes.csv_writer import CsvWriter
 from util import output_entries_to_columns, to_py_floats, binary_search_greater_than_equals
 
 _CHLORIDE_MATCHES = "chloride matches."
@@ -131,8 +131,9 @@ def _output_isotope_matches(isotope_chunk_results, match_msg, csv_output_path):
 def main():
     start = time.time()
 
-    processor = CsvProcessor(config.CSV_INPUT_PATH, _preprocess_table_filter, _preprocess_table_into_chunks,
-                             _match_chloride_bromide, delimiter=config.CSV_DELIMITER, skip_rows=config.CSV_SKIP_ROWS,
+    processor = CsvProcessor(config.CSV_INPUT_PATH, filter_callback=_preprocess_table_filter,
+                             chunk_callback=_preprocess_table_into_chunks, match_callback=_match_chloride_bromide,
+                             delimiter=config.CSV_DELIMITER, skip_rows=config.CSV_SKIP_ROWS,
                              include_columns=config.CSV_INCLUDE_COLUMNS)
     chunk_results = list(zip(*processor.process()))
 

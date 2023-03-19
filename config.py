@@ -1,6 +1,6 @@
 CSV_INPUT_PATH = "data/demo-input.csv"  # Data location (CSV)
-CSV_SKIP_ROWS = 10  # Number of lines that should be skipped (i.e. for comments)
-CSV_DELIMITER = ";"  # The character separating each value within the csv
+CSV_SKIP_ROWS = 0  # Number of lines that should be skipped (i.e. for comments)
+CSV_DELIMITER = ","  # The character separating each value within the csv
 CSV_M_Z_NAME = "m/z"
 CSV_INTENSITY_NAME = "intensities"
 CSV_INCLUDE_COLUMNS = [CSV_M_Z_NAME, CSV_INTENSITY_NAME]
@@ -21,3 +21,9 @@ CHLORIDE_INTENSITY_RATIO_ERROR_MARGIN = 0.00032
 BROMIDE_DELTA_M_Z = 1.997953499  # Mass to charge ratio indicating bromide isotopes
 BROMIDE_INTENSITY_RATIO = 0.97355  # Intensity ratio indicating chloride isotopes
 BROMIDE_INTENSITY_RATIO_ERROR_MARGIN = 0.0001
+
+# Data Intersection Config
+CSV_INPUT_PATH_1 = "data/output-bromide-0.001.csv"
+CSV_INPUT_PATH_2 = "data/output-bromide-0.001-TEST.csv"
+CSV_INTERSECTION_NAMES = ["m/z 1", "m/z 2"]
+CSV_OUTPUT_INTERSECTION_PATH = "data/demo-intersection-output.csv"

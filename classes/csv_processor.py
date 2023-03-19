@@ -19,23 +19,23 @@ def _worker(chunk, match_callback):
 
 
 class CsvProcessor:
-    def __init__(self, file_path, filter_callback, chunk_callback, match_callback, **kwargs):
+    def __init__(self, file_path, **kwargs):
         kwargs = _DEFAULT_KWARGS | kwargs
         self.__file_path = file_path
-        self.__filter_callback = filter_callback
-        self.__chunk_callback = chunk_callback
-        self.__match_callback = match_callback
-        self.__delimiter = kwargs["delimiter"]
-        self.__skip_rows = kwargs["skip_rows"]
-        self.__include_columns = kwargs["include_columns"]
+        self.__filter_callback = kwargs.get("filter_callback")
+        self.__chunk_callback = kwargs.get("chunk_callback")
+        self.__match_callback = kwargs.get("match_callback")
+        self.__delimiter = kwargs.get("delimiter")
+        self.__skip_rows = kwargs.get("skip_rows")
+        self.__include_columns = kwargs.get("include_columns")
 
     def process(self):
-        table = self.__csv_to_table()
+        table = self.csv_to_table()
         filtered_table = self.__filter_table(table)
         chunk_indices = self.__table_to_chunks(filtered_table)
         return self.__process_chunks_parallel(filtered_table, chunk_indices)
 
-    def __csv_to_table(self):
+    def csv_to_table(self):
         print(_READING_CSV_MSG)
         read_options = csv.ReadOptions(use_threads=True, skip_rows=self.__skip_rows)
         parse_options = csv.ParseOptions(delimiter=self.__delimiter)
